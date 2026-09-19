@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import User from './UserModel';
-import Rating from './RatingModel';
 
 interface StoreAttributes {
   id: number;
@@ -31,9 +29,5 @@ Store.init(
   },
   { sequelize, tableName: 'stores' }
 );
-
-// Associations
-Store.belongsTo(User, { foreignKey: 'userId', as: 'owner' });
-Store.hasMany(Rating, { foreignKey: 'storeId', as: 'ratings' });
 
 export default Store;

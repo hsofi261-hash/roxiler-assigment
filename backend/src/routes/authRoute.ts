@@ -8,7 +8,9 @@ const router = express.Router();
 router.post('/signup', signup);                  
 router.post('/login', login);                    
 router.post('/logout', verifyToken, logout);     
-router.put('/password', verifyToken, updatePassword);
-router.get('/check', verifyToken, checkAuth);
+router.put('/update-password', verifyToken, updatePassword);
+router.get('/check-user', verifyToken, checkAuth);
+router.get('/check-store', verifyToken, requireRole(['store_owner']), checkAuth); 
+router.get('/check-admin', verifyToken, requireRole(['admin']), checkAuth); 
 
 export default router;

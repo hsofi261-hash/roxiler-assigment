@@ -43,18 +43,40 @@ services:
       db:
         condition: service_healthy
 
-  frontend:
-    container_name: roxiler_frontend
-    build: ./frontend
-    restart: always
+  # frontend:
+  #   container_name: roxiler_frontend
+  #   build: ./frontend
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${FRONTEND_PORT}:3000"
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+  #   depends_on:
+  #     - backend
+
+  seeder:
+    container_name: roxiler_seeder
+    build: ./backend
+    command: npm run seed:admin
+    restart: "no"
     env_file:
       - .env
-    ports:
-      - "${FRONTEND_PORT}:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      MYSQL_HOST: db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_PORT: 3306
+      ADMIN_NAME: ${ADMIN_NAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_ADDRESS: ${ADMIN_ADDRESS}
     depends_on:
-      - backend
+      db:
+        condition: service_healthy
+
 
 volumes:
   db_data:

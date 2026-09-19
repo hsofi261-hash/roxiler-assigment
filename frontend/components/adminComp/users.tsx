@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Plus, Search, ArrowUpDown, Mail, MapPin, Star, AlertCircle } from "lucide-react";
+import { Plus, Search, ArrowUpDown, Mail, MapPin, Star, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,13 +8,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Import the RTK Query mutation hook
+import { useCreateUserMutation } from "@/lib/api/userApi";
+
 interface UsersProps {
   users: any[];
-  setUsers: React.Dispatch<React.SetStateAction<any[]>>;
+  setUsers: () => void; // Parent wrapper triggering refetchUsers()
   setSuccessMsg: (msg: string) => void;
 }
 
-export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
+export default function UsersManagement({ users, setUsers, setSuccessMsg }: UsersProps) {
   const [userSearch, setUserSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [userSortField, setUserSortField] = useState("name");
@@ -28,13 +31,17 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
   const [newUserRole, setNewUserRole] = useState("Normal User");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // RTK Query mutation hook for user creation
+  const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
+
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password: string) => /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,16}$/.test(password);
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
+    // Frontend validations matching system constraints
     if (newUserName.length < 20 || newUserName.length > 60) {
       setErrorMsg("Name must be between 20 and 60 characters.");
       return;
@@ -52,21 +59,29 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
       return;
     }
 
-    setUsers([...users, {
-      id: users.length + 1,
-      name: newUserName,
-      email: newUserEmail,
-      address: newUserAddress,
-      role: newUserRole,
-      rating: newUserRole === "Store Owner" ? 5.0 : null
-    }]);
+    try {
+      // Call backend API via RTK Query mutation
+      await createUser({
+        name: newUserName,
+        email: newUserEmail,
+        password: newUserPassword,
+        address: newUserAddress,
+        role: newUserRole,
+      }).unwrap();
 
-    setSuccessMsg("User added successfully!");
-    setIsAddUserOpen(false);
-    setNewUserName("");
-    setNewUserEmail("");
-    setNewUserPassword("");
-    setNewUserAddress("");
+      setSuccessMsg("User added successfully!");
+      setIsAddUserOpen(false);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserAddress("");
+      setNewUserRole("Normal User");
+      
+      // Trigger parent refetch to refresh tables and dashboard counts
+      setUsers();
+    } catch (err: any) {
+      setErrorMsg(err?.data?.message || err?.error || "Failed to create user. Please try again.");
+    }
   };
 
   const handleSortUsers = (field: string) => {
@@ -146,27 +161,35 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/50">
-                  <td className="p-4 font-medium text-slate-900">{user.name}</td>
-                  <td className="p-4 text-slate-600 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-slate-400" />{user.email}</td>
-                  <td className="p-4 text-slate-600"><span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />{user.address}</span></td>
-                  <td className="p-4">
-                    <Badge variant={user.role === "System Administrator" ? "default" : "secondary"}>
-                      {user.role}
-                    </Badge>
-                  </td>
-                  <td className="p-4 font-medium">
-                    {user.role === "Store Owner" ? (
-                      <span className="flex items-center gap-1 text-amber-600">
-                        <Star className="h-4 w-4 fill-amber-400 text-amber-500" /> {user.rating} / 5
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 italic">N/A</span>
-                    )}
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50/50">
+                    <td className="p-4 font-medium text-slate-900">{user.name}</td>
+                    <td className="p-4 text-slate-600 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-slate-400" />{user.email}</td>
+                    <td className="p-4 text-slate-600"><span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />{user.address}</span></td>
+                    <td className="p-4">
+                      <Badge variant={user.role === "System Administrator" ? "default" : "secondary"}>
+                        {user.role}
+                      </Badge>
+                    </td>
+                    <td className="p-4 font-medium">
+                      {user.role === "Store Owner" ? (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-500" /> {user.rating ?? 0} / 5
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">N/A</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-slate-400 italic">
+                    No users found matching your criteria.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -197,6 +220,7 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
                 placeholder="Full Name required"
                 value={newUserName}
                 onChange={(e) => setNewUserName(e.target.value)}
+                disabled={isCreating}
               />
             </div>
 
@@ -208,6 +232,7 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
                 placeholder="name@example.com"
                 value={newUserEmail}
                 onChange={(e) => setNewUserEmail(e.target.value)}
+                disabled={isCreating}
               />
             </div>
 
@@ -222,6 +247,7 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
                 placeholder="••••••••"
                 value={newUserPassword}
                 onChange={(e) => setNewUserPassword(e.target.value)}
+                disabled={isCreating}
               />
             </div>
 
@@ -235,6 +261,7 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
                 placeholder="Street address..."
                 value={newUserAddress}
                 onChange={(e) => setNewUserAddress(e.target.value)}
+                disabled={isCreating}
               />
             </div>
 
@@ -245,16 +272,22 @@ export default function users({ users, setUsers, setSuccessMsg }: UsersProps) {
                 className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm bg-white"
                 value={newUserRole}
                 onChange={(e) => setNewUserRole(e.target.value)}
+                disabled={isCreating}
               >
-                <option value="Normal User">Normal User</option>
-                <option value="System Administrator">System Administrator</option>
-                <option value="Store Owner">Store Owner</option>
+                <option value="">Normal User</option>
+                <option value="admin">System Administrator</option>
+                <option value="store_owner">Store Owner</option>
               </select>
             </div>
 
             <DialogFooter className="pt-2">
-              <Button variant="outline" type="button" onClick={() => setIsAddUserOpen(false)}>Cancel</Button>
-              <Button type="submit">Create User</Button>
+              <Button variant="outline" type="button" onClick={() => setIsAddUserOpen(false)} disabled={isCreating}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating} className="flex items-center gap-2">
+                {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isCreating ? "Creating..." : "Create User"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

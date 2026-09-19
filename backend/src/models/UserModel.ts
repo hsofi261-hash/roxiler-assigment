@@ -1,7 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../db';
-import Store from './StoreModel';
-import Rating from './RatingModel';
 
 interface UserAttributes {
   id: number;
@@ -15,12 +13,13 @@ interface UserAttributes {
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: number;
-  public name!: string;
-  public email!: string;
-  public password!: string;
-  public address!: string;
-  public role!: 'admin' | 'user' | 'store_owner';
+  // Use 'declare' so TypeScript knows these map to Sequelize attributes without shadowing getters/setters
+  declare public id: number;
+  declare public name: string;
+  declare public email: string;
+  declare public password: string;
+  declare public address: string;
+  declare public role: 'admin' | 'user' | 'store_owner';
 }
 
 User.init(
@@ -34,9 +33,5 @@ User.init(
   },
   { sequelize, tableName: 'users' }
 );
-
-// Associations
-User.hasMany(Store, { foreignKey: 'userId', as: 'stores' });
-User.hasMany(Rating, { foreignKey: 'userId', as: 'ratings' });
 
 export default User;

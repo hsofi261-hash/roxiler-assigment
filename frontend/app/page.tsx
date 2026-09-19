@@ -1,6 +1,10 @@
 "use client";
 import React, { useState } from "react";
-import { Search, MapPin, Star, Store, LogOut, Edit3, PlusCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, MapPin, Star, Store, LogOut, Edit3, PlusCircle, LogIn } from "lucide-react";
+
+// Import the RTK Query hook (adjust path based on where your authApi file is saved)
+import { useCheckAuthQuery } from "@/lib/api/authApi";
 
 // Mock shadcn-style UI components
 import { Button } from "@/components/ui/button";
@@ -9,24 +13,48 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
+// Define TypeScript Interface for Store
+interface StoreType {
+  id: number;
+  name: string;
+  email: string;
+  address: string;
+  overallRating: number;
+  userRating: number | null;
+}
+
 export default function StoreCatalogPage() {
+  const router = useRouter();
+
+  // Check if a token exists in localStorage to avoid unnecessary queries if unauthenticated
+  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+
+  // RTK Query hook to check authorization and fetch user details from backend
+  const { data: authData, isLoading: isAuthLoading } = useCheckAuthQuery(undefined, {
+    skip: !hasToken,
+  });
+
+  const isLoggedIn = Boolean(hasToken && authData?.isAuthenticated && authData?.user);
+  const userName = authData?.user?.name || "User";
+
+  // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   
   // Rating Modal State
   const [isRatingOpen, setIsRatingOpen] = useState(false);
-  const [activeStore, setActiveStore] = useState(null);
+  const [activeStore, setActiveStore] = useState<StoreType | null>(null);
   const [selectedRating, setSelectedRating] = useState(5);
 
-  // Mock Data based on requirements
-  const [stores, setStores] = useState([
+  // Mock Data with StoreType[]
+  const [stores, setStores] = useState<StoreType[]>([
     {
       id: 1,
       name: "Downtown Electronics Store",
       email: "contact@downtownelectronics.com",
       address: "123 Market Street, Suite 100",
       overallRating: 4.2,
-      userRating: 4, // null if not submitted yet
+      userRating: 4,
     },
     {
       id: 2,
@@ -46,6 +74,13 @@ export default function StoreCatalogPage() {
     },
   ]);
 
+  // Handle Logout
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/auth"; // Full reload or router.push to clear RTK query cache state
+  };
+
   // Filter stores by Name and Address
   const filteredStores = stores.filter((store) => {
     const matchesName = store.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -53,13 +88,22 @@ export default function StoreCatalogPage() {
     return matchesName && matchesAddress;
   });
 
-  const handleOpenRatingModal = (store) => {
+  // Handle Rating Click (Redirect to login if unauthenticated or token is invalid)
+  const handleOpenRatingModal = (store: StoreType) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token || !isLoggedIn) {
+      router.push("/auth");
+      return;
+    }
+
     setActiveStore(store);
     setSelectedRating(store.userRating || 5);
     setIsRatingOpen(true);
   };
 
   const handleSaveRating = () => {
+    if (!activeStore) return;
+    
     setStores(stores.map(s => {
       if (s.id === activeStore.id) {
         return { ...s, userRating: selectedRating };
@@ -78,10 +122,20 @@ export default function StoreCatalogPage() {
           <h1 className="text-xl font-bold tracking-tight">Store Rating Platform</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm font-medium text-slate-600">Welcome, Normal User</span>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <LogOut className="h-4 w-4" /> Log Out
-          </Button>
+          {isAuthLoading ? (
+            <span className="text-sm text-slate-400">Loading...</span>
+          ) : isLoggedIn ? (
+            <>
+              <span className="text-sm font-medium text-slate-600">Welcome, {userName}</span>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" /> Log Out
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => router.push("/auth")} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" /> Log In
+            </Button>
+          )}
         </div>
       </header>
 
@@ -91,7 +145,7 @@ export default function StoreCatalogPage() {
         {/* Page Title & Description */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold tracking-tight">Registered Stores Catalog</h2>
-          <p className="text-sm text-slate-500">Browse stores, check overall ratings, and submit or update your reviews[cite: 1].</p>
+          <p className="text-sm text-slate-500">Browse stores, check overall ratings, and submit or update your reviews.</p>
         </div>
 
         {/* Search Bar Grid */}
@@ -183,7 +237,7 @@ export default function StoreCatalogPage() {
               {activeStore?.userRating ? "Modify Your Rating" : "Submit Rating"}
             </DialogTitle>
             <p className="text-sm text-slate-500 pt-1">
-              Rate <span className="font-semibold text-slate-800">{activeStore?.name}</span> on a scale from 1 to 5[cite: 1].
+              Rate <span className="font-semibold text-slate-800">{activeStore?.name}</span> on a scale from 1 to 5.
             </p>
           </DialogHeader>
 

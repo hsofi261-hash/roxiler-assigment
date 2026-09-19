@@ -10,6 +10,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Import RTK Query hooks and types from your auth API slice
+import { useLoginMutation, useSignupMutation } from "@/lib/api/authApi";
+
 export default function AuthPage() {
   // Active Tab State
   const [activeTab, setActiveTab] = useState("login");
@@ -28,20 +31,25 @@ export default function AuthPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Validation Helper functions based on requirements
-  const validateEmail = (email) => {
+  // RTK Query Mutations
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [signup, { isLoading: isSigningUp }] = useSignupMutation();
+
+  // Validation Helper functions matching backend criteria
+  const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const validatePassword = (password) => {
+  const validatePassword = (password: string) => {
     // 8-16 characters, at least one uppercase letter, one special character
     const regex = /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,16}$/;
     return regex.test(password);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     
     if (!loginEmail || !loginPassword) {
       setErrorMsg("Please fill in all login fields.");
@@ -52,11 +60,23 @@ export default function AuthPage() {
       return;
     }
 
-    // Proceed with backend authentication API call
-    setSuccessMsg("Successfully logged in! Redirecting...");
+    try {
+      const response = await login({ email: loginEmail, password: loginPassword }).unwrap();
+      
+      // Save token and user session data
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+
+      setSuccessMsg(response.message || "Successfully logged in! Redirecting...");
+      
+      // Optional: Add router redirect here (e.g., router.push('/dashboard'))
+    } catch (err: any) {
+      // Handle RTK Query error response from backend
+      setErrorMsg(err?.data?.message || "An unexpected error occurred during login.");
+    }
   };
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
@@ -73,21 +93,39 @@ export default function AuthPage() {
       return;
     }
 
-    // Address Validation: Max 400 characters[cite: 1]
+    // Address Validation: Max 400 characters
     if (signupAddress.length > 400) {
       setErrorMsg("Address cannot exceed 400 characters.");
       return;
     }
 
-    // Password Validation: 8-16 chars, 1 uppercase, 1 special character[cite: 1]
+    // Password Validation: 8-16 chars, 1 uppercase, 1 special character
     if (!validatePassword(signupPassword)) {
       setErrorMsg("Password must be 8-16 characters long and include at least one uppercase letter and one special character.");
       return;
     }
 
-    // Proceed with backend registration API call
-    setSuccessMsg("Registration successful! You can now log in.");
-    setActiveTab("login");
+    try {
+      const response = await signup({
+        name: signupName,
+        email: signupEmail,
+        password: signupPassword,
+        address: signupAddress,
+      }).unwrap();
+
+      // Auto-login upon successful signup (backend returns token & user data)
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+
+      setSuccessMsg(response.message || "Registration successful!");
+      
+      // Optional: Redirect or switch tab
+      setTimeout(() => {
+        // router.push('/dashboard') or setActiveTab("login")
+      }, 1500);
+    } catch (err: any) {
+      setErrorMsg(err?.data?.message || "An unexpected error occurred during registration.");
+    }
   };
 
   return (
@@ -99,7 +137,7 @@ export default function AuthPage() {
           <Store className="h-6 w-6" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Store Rating Platform</h1>
-        <p className="text-sm text-slate-500 mt-1">Manage, discover, and rate registered stores in one unified portal[cite: 1].</p>
+        <p className="text-sm text-slate-500 mt-1">Manage, discover, and rate registered stores in one unified portal.</p>
       </div>
 
       {/* Main Authentication Card */}
@@ -132,8 +170,6 @@ export default function AuthPage() {
 
             {/* --- LOGIN TAB CONTENT --- */}
             <TabsContent value="login" className="space-y-4 mt-0">
-              
-
               <form onSubmit={handleLogin} className="space-y-3 pt-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="login-email">Email Address</Label>
@@ -165,15 +201,14 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full mt-4 flex items-center justify-center gap-2">
-                  Log In <ArrowRight className="h-4 w-4" />
+                <Button type="submit" disabled={isLoggingIn} className="w-full mt-4 flex items-center justify-center gap-2">
+                  {isLoggingIn ? "Logging in..." : <>Log In <ArrowRight className="h-4 w-4" /></>}
                 </Button>
               </form>
             </TabsContent>
 
             {/* --- SIGNUP TAB CONTENT --- */}
             <TabsContent value="signup" className="space-y-4 mt-0">
-
               <form onSubmit={handleSignup} className="space-y-3 pt-1">
                 
                 {/* Name */}
@@ -247,8 +282,8 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full mt-2 flex items-center justify-center gap-2">
-                  Register Account <ArrowRight className="h-4 w-4" />
+                <Button type="submit" disabled={isSigningUp} className="w-full mt-2 flex items-center justify-center gap-2">
+                  {isSigningUp ? "Registering..." : <>Register Account <ArrowRight className="h-4 w-4" /></>}
                 </Button>
               </form>
             </TabsContent>

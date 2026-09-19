@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,31 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Import the store auth check and update password mutation hooks from your authApi slice
+// (Adjust path if your api slice is located elsewhere, e.g., "@/lib/api/authApi")
+import { useCheckStoreAuthQuery, useUpdatePasswordMutation } from "@/lib/api/authApi";
+
 export default function Page() {
+  const router = useRouter();
+
+  // Check if token exists in localStorage to avoid unnecessary queries
+  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+
+  // Query store owner auth endpoint
+  const { data: authData, isLoading: isAuthLoading, isError } = useCheckStoreAuthQuery(undefined, {
+    skip: !hasToken,
+  });
+
+  // Redirect to homepage if unauthenticated, token is missing, or user lacks store access
+  useEffect(() => {
+    if (!hasToken || isError || (authData && !authData.isAuthenticated)) {
+      router.push("/");
+    }
+  }, [hasToken, isError, authData, router]);
+
+  // RTK Query update password mutation hook
+  const [updatePassword, { isLoading: isUpdating }] = useUpdatePasswordMutation();
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,7 +43,7 @@ export default function Page() {
   const validatePassword = (password: string) => 
     /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,16}$/.test(password);
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
@@ -43,19 +68,41 @@ export default function Page() {
       return;
     }
 
-    // Success Simulation
-    setSuccessMsg("Password updated successfully! Your account is now secured.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    try {
+      const response = await updatePassword({
+        oldPassword: currentPassword,
+        newPassword: newPassword,
+      }).unwrap();
+
+      setSuccessMsg(response.message || "Password updated successfully! Your account is now secured.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      setErrorMsg(err?.data?.message || "Failed to update password. Please check your current password.");
+    }
   };
+
+  // Show loading indicator while verifying store owner permissions
+  if (isAuthLoading || !hasToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500 font-medium">Verifying store owner access...</p>
+      </div>
+    );
+  }
+
+  // Prevent rendering if unauthorized while redirect is pending
+  if (isError || (authData && !authData.isAuthenticated)) {
+    return null;
+  }
 
   return (
     <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-xl space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Security Settings</h2>
-          <p className="text-sm text-slate-500">Manage your account credentials and update your security passphrase.</p>
+          <p className="text-sm text-slate-500">Manage your store account credentials and update your security passphrase.</p>
         </div>
 
         <Card className="border-slate-200 shadow-sm">
@@ -65,7 +112,7 @@ export default function Page() {
               <CardTitle>Change Password</CardTitle>
             </div>
             <CardDescription>
-              Ensure your account uses a long, random password to stay secure.
+              Ensure your store account uses a secure password to stay protected.
             </CardDescription>
           </CardHeader>
 
@@ -123,7 +170,9 @@ export default function Page() {
             </CardContent>
 
             <CardFooter className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/50 py-3 px-6">
-              <Button type="submit">Update Password</Button>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Updating..." : "Update Password"}
+              </Button>
             </CardFooter>
           </form>
         </Card>

@@ -1,13 +1,34 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Star, Users, Building2, Search, Mail, ArrowUpDown, MessageSquare, Lock } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+// Import the store auth check hook from your authApi slice
+import { useCheckStoreAuthQuery } from "@/lib/api/authApi";
+
 export default function Page() {
+  const router = useRouter();
+
+  // Check if token exists in localStorage to avoid premature queries
+  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+
+  // Query store owner auth endpoint
+  const { data: authData, isLoading, isError } = useCheckStoreAuthQuery(undefined, {
+    skip: !hasToken,
+  });
+
+  // Redirect to homepage if unauthenticated, token is missing, or user lacks store access
+  useEffect(() => {
+    if (!hasToken || isError || (authData && !authData.isAuthenticated)) {
+      router.push("/");
+    }
+  }, [hasToken, isError, authData, router]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("date");
   const [sortAsc, setSortAsc] = useState(false);
@@ -47,6 +68,20 @@ export default function Page() {
     if (valA > valB) return sortAsc ? 1 : -1;
     return 0;
   });
+
+  // Show loading indicator while verifying permissions
+  if (isLoading || !hasToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500 font-medium">Verifying store owner access...</p>
+      </div>
+    );
+  }
+
+  // Prevent rendering dashboard content if unauthorized while redirect is pending
+  if (isError || (authData && !authData.isAuthenticated)) {
+    return null;
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

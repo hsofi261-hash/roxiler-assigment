@@ -3,12 +3,19 @@ import React from "react";
 import { Users, Building2, Star } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
+interface DashboardStats {
+  totalUsers: number;
+  totalStores: number;
+  totalRatings: number;
+}
+
 interface DashboardProps {
   users: any[];
   stores: any[];
+  stats: DashboardStats;
 }
 
-export default function dashboard({ users, stores }: DashboardProps) {
+export default function Dashboard({ users, stores, stats }: DashboardProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -23,7 +30,7 @@ export default function dashboard({ users, stores }: DashboardProps) {
             <Users className="h-5 w-5 text-indigo-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{users.length}</div>
+            <div className="text-3xl font-bold">{stats?.totalUsers ?? users.length}</div>
             <p className="text-xs text-slate-400 mt-1">Registered Admins, Normal Users & Store Owners</p>
           </CardContent>
         </Card>
@@ -34,7 +41,7 @@ export default function dashboard({ users, stores }: DashboardProps) {
             <Building2 className="h-5 w-5 text-indigo-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stores.length}</div>
+            <div className="text-3xl font-bold">{stats?.totalStores ?? stores.length}</div>
             <p className="text-xs text-slate-400 mt-1">Active registered stores on platform</p>
           </CardContent>
         </Card>
@@ -45,7 +52,7 @@ export default function dashboard({ users, stores }: DashboardProps) {
             <Star className="h-5 w-5 text-amber-500 fill-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">42</div>
+            <div className="text-3xl font-bold">{stats?.totalRatings ?? 0}</div>
             <p className="text-xs text-slate-400 mt-1">Total customer reviews recorded</p>
           </CardContent>
         </Card>
@@ -53,9 +60,3 @@ export default function dashboard({ users, stores }: DashboardProps) {
     </div>
   );
 }
-
-
-
-
-
-
