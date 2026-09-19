@@ -115,10 +115,12 @@ export const getStoreById = async (req: Request, res: Response) => {
     }
 };
 
-// Create a new store by Admin
+// Create a new store by Store Owner
 export const createStore = async (req: Request, res: Response) => {
     try {
-        const { name, email, address, userId } = req.body;
+        const userId = (req as any).user?.id;
+        console.log('Authenticated user ID:', userId);
+        const { name, email, address } = req.body;
 
         // 1. Form Validations according to project requirements
         if (!name || name.length < 20 || name.length > 60) {

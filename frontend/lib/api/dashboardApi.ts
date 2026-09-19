@@ -62,7 +62,7 @@ export const dashboardApi = createApi({
 
         // Endpoint for Store Owner Dashboard Data
         getStoreOwnerDashboard: builder.query<StoreOwnerDashboardResponse, void>({
-            query: () => '/store/dashboard', // Replace with your exact backend route path
+            query: () => '/admin/store-owner', // Replace with your exact backend route path
             providesTags: ['StoreDashboard'],
         }),
     }),
