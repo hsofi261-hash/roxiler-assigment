@@ -79,7 +79,17 @@ export const storeApi = createApi({
         // 1. Get all stores with search, filters (name, address), and sorting
         getStores: builder.query<GetStoresResponse, GetStoresQueryParams | void>({
             query: (params) => {
-                const queryString = params ? new URLSearchParams(params as Record<string, string>).toString() : '';
+                if (!params) return '/stores';
+
+                // Filter out empty, null, or undefined values so they don't get added as empty parameters
+                const filteredParams = Object.entries(params).reduce((acc, [key, value]) => {
+                    if (value !== undefined && value !== null && value !== '') {
+                        acc[key] = String(value);
+                    }
+                    return acc;
+                }, {} as Record<string, string>);
+
+                const queryString = new URLSearchParams(filteredParams).toString();
                 return `/stores${queryString ? `?${queryString}` : ''}`;
             },
             providesTags: ['AdminStores'],
