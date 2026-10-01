@@ -112,7 +112,7 @@ export default function StoreOwnerDashboardPage() {
   const stores = dashboardData?.stores || [];
   const hasStore = stores.length > 0;
   // For single-store owners (or picking the first store)
-  const currentStore = hasStore ? stores[0] : null;
+const currentStore = hasStore ? (stores[0] as NonNullable<typeof stores[0]>) : null;
 
   // --- CONDITIONAL RENDERING: IF STORE IS NOT PRESENT, SHOW CREATION FORM ---
   if (!hasStore) {

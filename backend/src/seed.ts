@@ -8,6 +8,9 @@ const seedAdmin = async () => {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
 
+    // Keep the schema ready even when the seeder starts before the backend.
+    await sequelize.sync({ alter: true });
+
     // 2. Check if ANY admin user already exists in the database
     const existingAdmin = await User.findOne({ where: { role: 'admin' } });
     if (existingAdmin) {
