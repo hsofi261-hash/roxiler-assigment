@@ -3,12 +3,12 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-# Use npm ci for clean, reproducible installs from package-lock.json
-RUN npm ci
+
+# Use npm install instead of npm ci to read package.json directly
+RUN npm install
 
 COPY . .
 
-# Build TypeScript source code into /dist
 RUN npm run build
 
 EXPOSE 5000
