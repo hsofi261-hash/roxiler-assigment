@@ -82,12 +82,14 @@ export default function StoreDetailPage() {
       } else {
         await submitRating({ storeId, rating: selectedRating }).unwrap();
       }
+      
+      // Close modal on successful submission/update
       setIsRatingOpen(false);
     } catch (err) {
       console.error("Failed to save rating:", err);
     }
   };
-
+  
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
